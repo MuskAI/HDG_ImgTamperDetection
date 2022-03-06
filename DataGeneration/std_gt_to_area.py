@@ -2,6 +2,7 @@
 created by HDG
 time:2021-1-1
 description:convert std gt to area gt
+将std gt 转化为区域gt
 """
 
 import argparse

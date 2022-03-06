@@ -3,8 +3,7 @@ created by HDG
 time 2022-1-8
 """
 import traceback
-from model import model
-from model.model_812 import Net
+from model.unet_model_aspp_attention import UNet as Net
 import os, sys
 import numpy as np
 from PIL import Image
@@ -52,8 +51,11 @@ def read_test_data(output_path):
             # plt.imshow(gt)
             # plt.show()
             # gt_ = np.array(gt,dtype='float32')
-
-            img = Image.open(image_path)
+            try:
+                img = Image.open(image_path)
+            except Exception as e:
+                print(e)
+                continue
             # resize 的方式
             if img.size != (320, 320):
                 # try:
@@ -88,8 +90,8 @@ def read_test_data(output_path):
 
 
 
-            output = np.transpose(output,(1,2,0))
-            output_ = output.squeeze(2)
+            # output = np.transpose(output,(1,2,0))
+            # output_ = output.squeeze(2)
 
             # 在这里计算一下loss
             # output_ = torch.from_numpy(output_)
@@ -99,7 +101,7 @@ def read_test_data(output_path):
             # plt.figure('prediction')
             # plt.imshow(output_)
             # plt.show()
-            output = np.array(output_)*255
+            output = np.array(output)*255
             output = np.asarray(output,dtype='uint8')
             # output_img = Image.fromarray(output)
             # output_img.save(output_path + 'output_'+name)
@@ -108,41 +110,42 @@ def read_test_data(output_path):
         traceback.print_exc()
         print(e)
 
-class Helper():
-    def __init__(self,test_src_dir = '/media/liu/File/11月数据准备/CASIA2.0_DATA_FOR_TRAIN/src',
-                 test_gt_dir ='/media/liu/File/11月数据准备/CASIA2.0_DATA_FOR_TRAIN/gt'):
-        self.test_src_dir = test_src_dir
-        self.test_gt_dir = test_gt_dir
-        pass
-    def find_gt(self, src_path):
-        """
-        using src name to find gt
-        using this function to validation loss
-        using this funciton when debug
-        :return: gt path
-        """
-        src_name = src_path.split('/')[-1]
-        # gt_name = src_name.replace('Default','Gt').replace('png','bmp').replace('jpg','bmp')
-        gt_name = src_name.split('.')[0] + '_gt.png'
-        gt_path = os.path.join(self.test_gt_dir,gt_name)
-
-        if os.path.exists(gt_path):
-            pass
-        else:
-            print(gt_path,'not exists')
-            traceback.print_exc()
-            sys.exit()
-        return gt_path
+# class Helper():
+#     def __init__(self,test_src_dir = '/media/liu/File/11月数据准备/CASIA2.0_DATA_FOR_TRAIN/src',
+#                  test_gt_dir ='/media/liu/File/11月数据准备/CASIA2.0_DATA_FOR_TRAIN/gt'):
+#         self.test_src_dir = test_src_dir
+#         self.test_gt_dir = test_gt_dir
+#         pass
+#     def find_gt(self, src_path):
+#         """
+#         using src name to find gt
+#         using this function to validation loss
+#         using this funciton when debug
+#         :return: gt path
+#         """
+#         src_name = src_path.split('/')[-1]
+#         # gt_name = src_name.replace('Default','Gt').replace('png','bmp').replace('jpg','bmp')
+#         gt_name = src_name.split('.')[0] + '_gt.png'
+#         gt_path = os.path.join(self.test_gt_dir,gt_name)
+#
+#         if os.path.exists(gt_path):
+#             pass
+#         else:
+#             print(gt_path,'not exists')
+#             traceback.print_exc()
+#             sys.exit()
+#         return gt_path
 
 if __name__ == '__main__':
     try:
-        test_data_path = '/media/liu/File/11月数据准备/CASIA2.0_DATA_FOR_TRAIN/src'
-        output_path = '/media/liu/File/11月数据准备/1211测试/casia_train_data/pred'
+
+        test_data_path = '/home/liu/haoran/3月最新数据/public_dataset/columbia/src'
+        output_path = '/home/liu/haoran/test_result/final_columbia_test'
         if os.path.exists(output_path):
             pass
         else:
-            os.mkdir(output_path)
-        model_path = '/home/liu/chenhaoran/Mymodel/save_model/model_stage_one_casia_template_sp_train/1210checkpoint10-stage1-0.307417-f10.471496-precision0.486202-acc0.976723-recall0.488201.pth'
+            os.makedirs(output_path)
+        model_path = '/home/liu/haoran/HDG_ImgTamperDetection/save_model/0218_srm_aspp_dilate_attention_unet_area_coco_sp_cm_template/0218_unet_attention_area_checkpoint-99-0.052342-f10.880099-precision0.862926-acc0.973697-recall0.902359.pth'
         checkpoint = torch.load(model_path,map_location=torch.device('cpu'))
         model = Net().to(device)
         # model = torch.load(model_path)

@@ -15,11 +15,7 @@ def wce_dice_huber_loss(pred, gt):
     # loss3 = smooth_l1_loss(pred, gt)
     return 0.6 * loss1 + 0.4 * loss2
 
-def wce_dice_huber_loss_stage2(pred1,pred2,gt):
 
-    loss1 = cross_entropy_loss_stage2(pred2, gt, mask=pred1)
-    # loss2 = DiceLoss()(pred2, gt)
-    return loss1
 
 class DiceLoss(nn.Module):
     def __init__(self):
@@ -151,6 +147,16 @@ class FocalLoss(nn.Module):
             focal_loss = focal_loss.sum()
 
         return focal_loss
+
+def three_branch_loss(pred_area,pred_band,pred_cls,gt_area,gt_band,gt_cls):
+    # loss_area = cross_entropy_loss_edge_weight(pred_area, gt_area, gt_band)
+    loss_band = cross_entropy_loss(pred_band, gt_band)
+    loss_area = cross_entropy_loss(pred_area, gt_area)
+    loss_cls = CE_loss(pred_cls, gt_cls)
+    losses = loss_area*10 + loss_band*10 +loss_cls
+
+    return losses
+
 def cross_entropy_loss(prediction, label):
     label = label.long()
     mask = (label != 0).float()
@@ -158,20 +164,27 @@ def cross_entropy_loss(prediction, label):
     num_positive = torch.sum(mask).float()
     num_negative = mask.numel() - num_positive
     # print (num_positive, num_negative)
-    mask[mask != 0] = num_negative / (num_positive + num_negative) # 0.995
-    mask[mask == 0] = num_positive / (num_positive + num_negative) # 0.005
+    mask[mask != 0] = num_negative / (num_positive + num_negative) # 0.4
+    mask[mask == 0] = num_positive / (num_positive + num_negative) # 0.6
     cost = torch.nn.functional.binary_cross_entropy(
             prediction.float(), label.float(), weight=mask)
     return cost
-def cross_entropy_loss_stage2(prediction, label, mask):
+def cross_entropy_loss_edge_weight(prediction, label, band):
     label = label.long()
-    mask = (mask >= 0.2).float()
+    band = band.long()
+    mask = (label != 0).float()
+    mask_band = (band != 0).float()
+
+    num_positive = torch.sum(mask).float()
+    num_negative = mask.numel() - num_positive
+    # print (num_positive, num_negative)
+    mask[mask != 0] = num_negative / (num_positive + num_negative) # 0.4
+    mask[mask == 0] = num_positive / (num_positive + num_negative) # 0.6
+
+    mask_band[mask_band!=0] = (num_negative / (num_positive + num_negative))*5
+    mask = mask + mask_band
     cost = torch.nn.functional.binary_cross_entropy(
             prediction.float(), label.float(), weight=mask)
-    return cost
-
-def map8_loss_ce(prediction, label):
-    cost = cross_entropy_loss(prediction,label)
     return cost
 
 def weighted_nll_loss(prediction, label):
@@ -231,7 +244,7 @@ def my_precision_score(prediction,label):
     y = np.array(y.cpu().detach())
     y = np.where(y > 0.5, 1, 0).astype('int')
     l = np.array(l.cpu().detach()).astype('int')
-    return precision_score(y_pred=y,y_true=l, zero_division=1)
+    return precision_score(y_pred=y,y_true=l)
 
 def my_acc_score(prediction,label):
     y = prediction.reshape(-1)
@@ -249,8 +262,7 @@ def my_f1_score(prediction,label):
     y = np.array(y.cpu().detach())
     y = np.where(y > 0.5, 1, 0).astype('int')
     l = np.array(l.cpu().detach()).astype('int')
-
-    return f1_score(y_pred=y,y_true=l,zero_division=1)
+    return f1_score(y_pred=y,y_true=l)
 
 def my_recall_score(prediction,label):
 
@@ -260,7 +272,8 @@ def my_recall_score(prediction,label):
     y = np.where(y > 0.5, 1, 0).astype('int')
     l = np.array(l.cpu().detach()).astype('int')
 
-    return recall_score(y_pred=y,y_true=l, zero_division=1)
+    return recall_score(y_pred=y,y_true=l)
+
 
 if __name__ == '__main__':
     a = torch.randn(1, 1, 320,320)

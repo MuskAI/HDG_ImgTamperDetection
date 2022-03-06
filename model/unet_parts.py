@@ -24,7 +24,6 @@ class DilateDoubleConv(nn.Module):
     def forward(self, x):
         return self.double_conv(x)
 
-
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
 
@@ -85,45 +84,6 @@ class Down(nn.Module):
         return self.maxpool_conv(x)
 
 
-class RelationMap(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(RelationMap, self).__init__()
-        self.relation_conv = nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=16, kernel_size=1),
-            nn.BatchNorm2d(16),
-            nn.ReLU(),
-            nn.Conv2d(16, out_channels=out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.Sigmoid(),
-        )
-
-    def forward(self, x):
-        x = self.relation_conv(x)
-        return x
-
-
-class RelationFuse(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(RelationFuse, self).__init__()
-        self.final = nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=16, kernel_size=3, padding=1),
-            nn.BatchNorm2d(16),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, padding=1),
-            nn.BatchNorm2d(16),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=16, out_channels=8, kernel_size=3, padding=1),
-            nn.BatchNorm2d(8),
-            nn.ReLU(),
-            nn.Conv2d(8, out_channels, kernel_size=1),
-            nn.BatchNorm2d(1),
-            nn.Sigmoid(),
-        )
-
-    def forward(self, x):
-        x = self.final(x)
-        return x
-
 
 class Up(nn.Module):
     """Upscaling then double conv"""
@@ -153,20 +113,6 @@ class Up(nn.Module):
         return self.conv(x)
 
 
-class FuseStageOut(nn.Module):
-    def __init__(self, in_channels, out_channles):
-        super(FuseStageOut, self).__init__()
-        self.fuse_stage_out = nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=out_channles, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channles),
-            nn.ReLU(),
-        )
-
-    def forward(self, x1, x2):
-        x = torch.cat([x1, x2], dim=1)
-        x = self.fuse_stage_out(x)
-        return x
-
 
 class OutConv(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -176,20 +122,4 @@ class OutConv(nn.Module):
     def forward(self, x):
         x = self.conv(x)
         x = torch.nn.Sigmoid()(x)
-        return x
-class TwoStageOut(nn.Module):
-    def __init__(self, in_channels, out_channles):
-        super(TwoStageOut, self).__init__()
-        self.fuse_stage_out = nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=out_channles, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channles),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=out_channles, out_channels=1, kernel_size=3, padding=1),
-            nn.BatchNorm2d(1),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x1, x2):
-        x = torch.cat([x1, x2], dim=1)
-        x = self.fuse_stage_out(x)
         return x

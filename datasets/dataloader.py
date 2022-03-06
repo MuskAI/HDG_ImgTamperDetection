@@ -15,6 +15,7 @@ import time
 import os, sys
 import traceback
 from sklearn.model_selection import train_test_split
+from scipy import ndimage
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
@@ -61,6 +62,41 @@ class TamperDataset(Dataset):
         else:
             raise EOFError
 
+    def __gen_band(self, gt, dilate_window=5):
+        """
+        :param gt: PIL type
+        :param dilate_window:
+        :return:
+        """
+
+        _gt = gt.copy()
+
+        # input required
+        if len(_gt.split()) == 3:
+            _gt = _gt.split()[0]
+        else:
+            pass
+
+        _gt = np.array(_gt, dtype='uint8')
+
+        if max(_gt.reshape(-1)) == 255:
+            _gt = np.where((_gt == 255) | (_gt == 100), 1, 0)
+            _gt = np.array(_gt, dtype='uint8')
+        else:
+            pass
+
+        _gt = cv.merge([_gt])
+        kernel = np.ones((dilate_window, dilate_window), np.uint8)
+        _band = cv.dilate(_gt, kernel)
+        _band = np.array(_band, dtype='uint8')
+        _band = np.where(_band == 1, 255, 0)
+        _band = Image.fromarray(np.array(_band, dtype='uint8'))
+        if len(_band.split()) == 3:
+            _band = np.array(_band)[:, :, 0]
+        else:
+            _band = np.array(_band)
+        return _band
+
     def __getitem__(self, index):
         """
         train val test 区别对待
@@ -71,7 +107,7 @@ class TamperDataset(Dataset):
         # val mode
         # test mode
         mode = self.train_val_test_mode
-
+        isforgery = True
         if mode == 'train':
             tamper_path = self.train_src_list[index]
             gt_path = self.train_gt_list[index]
@@ -88,6 +124,8 @@ class TamperDataset(Dataset):
         try:
             img = Image.open(tamper_path)
             gt = Image.open(gt_path)
+            if 'negative' in tamper_path:
+                isforgery = False
         except Exception as e:
             traceback.print_exc(e)
         # check the src dim
@@ -97,8 +135,9 @@ class TamperDataset(Dataset):
                 print(gt_path)
         else:
             if len(img.split()) != 3 or img.size !=(320,320) or gt.size !=(320,320):
-                print(tamper_path, 'error')
-                print(gt_path)
+                # print(tamper_path, 'error')
+                # print(gt_path)
+                pass
         ##############################################
 
         # check the gt dim
@@ -111,12 +150,21 @@ class TamperDataset(Dataset):
         ##################################################
         try:
             # 将std gt换成篡改区域
-            gt = np.array(gt,dtype='uint8')
+            gt_band = self.__gen_band(gt)
+            gt = np.array(gt, dtype='uint8')
+            # 转化为无类别的GT 100 255 为边缘
+            # dou_em = np.array(gt)
+            # dou_em = np.where(dou_em == 50, 0, dou_em)
+            # dou_em = np.where(dou_em == 100, 255, dou_em)
+
             gt = np.where(gt==50, 255,gt)
             gt = np.where(gt==100,0,gt)
             gt = Image.fromarray(gt)
+            gt_band = Image.fromarray(gt_band)
+
+
         except Exception as e:
-            print(e)
+            traceback.print_exc(e)
 
         if mode == 'train' or mode == 'val':
             # if transform src
@@ -126,12 +174,12 @@ class TamperDataset(Dataset):
 
                 img = transforms.Compose([
                     # AddGlobalBlur(p=0.5),
+                    transforms.Resize((320, 320)),
                     transforms.ToTensor(),
                     transforms.Normalize((0.47, 0.43, 0.39), (0.27, 0.26, 0.27)),
                 ])(img)
             gt = transforms.ToTensor()(gt)
-
-
+            gt_band = transforms.ToTensor()(gt_band)
 
         elif mode == 'test':
             # if transform src
@@ -143,11 +191,14 @@ class TamperDataset(Dataset):
                     transforms.Normalize((0.47, 0.43, 0.39), (0.27, 0.26, 0.27)),
                 ])(img)
             gt = transforms.ToTensor()(gt)
+            gt_band = transforms.ToTensor()(gt_band)
         else:
             traceback.print_exc('the train_val_test mode is error')
 
         sample = {'tamper_image': img,
                   'gt' : gt,
+                  'gt_band' : gt_band,
+                  'gt_cls':torch.Tensor([1]) if isforgery else torch.Tensor([0]),
                   'path': {'src': tamper_path, 'gt': gt_path}}
 
         return sample
@@ -382,83 +433,83 @@ class MixData:
         except Exception as e:
             print(e)
         #
-        # try:
-        #     if using_data['my_cm']:
-        #         if train_mode:
-        #             path = os.path.join(self.data_root, 'coco_cm/train_src')
-        #             # path = '/home/liu/chenhaoran/Tamper_Data/0222/coco_cm_after_divide/train_src'
-        #             src_path_list.append(path)
-        #             self.cm_gt_path = os.path.join(self.data_root, 'coco_cm/train_gt')
-        #         else:
-        #             path = '/media/liu/File/8_26_Sp_dataset_after_divide/train_dataset_train_percent_0.80@8_26'
-        #             src_path_list.append(path)
-        #             self.cm_gt_path = '/media/liu/File/8_26_Sp_dataset_after_divide/test_dataset_train_percent_0.80@8_26'
-        # except Exception as e:
-        #     print(e)
-        # ###########################################
-        # # template
-        # try:
-        #     if using_data['template_casia_casia']:
-        #         if train_mode:
-        #             path = os.path.join(self.data_root,'casia_au_and_casia_template_after_divide/train_src')
-        #
-        #             src_path_list.append(path)
-        #             self.template_casia_casia_gt_path = os.path.join(self.data_root, 'casia_au_and_casia_template_after_divide/train_gt')
-        #
-        #         else:
-        #
-        #             path = '/media/liu/File/8_26_Sp_dataset_after_divide/train_dataset_train_percent_0.80@8_26'
-        #             src_path_list.append(path)
-        #             self.cm_gt_path = '/media/liu/File/8_26_Sp_dataset_after_divide/test_dataset_train_percent_0.80@8_26'
-        # except Exception as e:
-        #     print('template_casia_casia', 'error')
-        #
-        # try:
-        #     if using_data['template_coco_casia']:
-        #         if train_mode:
-        #             path = os.path.join(self.data_root,'coco_casia_template_after_divide/train_src')
-        #             src_path_list.append(path)
-        #             self.template_coco_casia_gt_path = os.path.join(self.data_root, 'coco_casia_template_after_divide/train_gt')
-        #         else:
-        #             path = '/media/liu/File/8_26_Sp_dataset_after_divide/train_dataset_train_percent_0.80@8_26'
-        #             src_path_list.append(path)
-        #             self.cm_gt_path = '/media/liu/File/8_26_Sp_dataset_after_divide/test_dataset_train_percent_0.80@8_26'
-        #
-        # except Exception as e:
-        #     print(e)
-        # ###########################################
-        #
-        # # cod10k
-        # try:
-        #     if using_data['cod10k']:
-        #         if train_mode:
-        #
-        #             path = os.path.join(self.data_root, 'COD10K/train_src')
-        #             src_path_list.append(path)
-        #             self.COD10K_gt_path = os.path.join(self.data_root, 'COD10K/train_gt')
-        #
-        #         else:
-        #             path = '/media/liu/File/8_26_Sp_dataset_after_divide/train_dataset_train_percent_0.80@8_26'
-        #             src_path_list.append(path)
-        #             self.cm_gt_path = '/media/liu/File/8_26_Sp_dataset_after_divide/test_dataset_train_percent_0.80@8_26'
-        # except Exception as e:
-        #     print(e)
-        # #############################################
-        #
-        # # negative
-        # try:
-        #     if using_data['negative']:
-        #         if train_mode:
-        #             path = os.path.join(self.data_root, 'negative')
-        #             src_path_list.append(path)
-        #             self.negative_gt_path = os.path.join(self.data_root, 'negative_gt')
-        #         else:
-        #             path = '/media/liu/File/10月数据准备/10月12日实验数据/negative/src'
-        #             src_path_list.append(path)
-        #             self.negative_gt_path = '/media/liu/File/10月数据准备/10月12日实验数据/negative/gt'
-        # except Exception as e:
-        #     print(e)
-        #
+        try:
+            if using_data['my_cm']:
+                if train_mode:
+                    path = os.path.join(self.data_root, 'coco_cm/train_src')
+                    # path = '/home/liu/chenhaoran/Tamper_Data/0222/coco_cm_after_divide/train_src'
+                    src_path_list.append(path)
+                    self.cm_gt_path = os.path.join(self.data_root, 'coco_cm/train_gt')
+                else:
+                    path = '/media/liu/File/8_26_Sp_dataset_after_divide/train_dataset_train_percent_0.80@8_26'
+                    src_path_list.append(path)
+                    self.cm_gt_path = '/media/liu/File/8_26_Sp_dataset_after_divide/test_dataset_train_percent_0.80@8_26'
+        except Exception as e:
+            print(e)
+        ###########################################
+        # template
+        try:
+            if using_data['template_casia_casia']:
+                if train_mode:
+                    path = os.path.join(self.data_root,'casia_au_and_casia_template_after_divide/train_src')
+
+                    src_path_list.append(path)
+                    self.template_casia_casia_gt_path = os.path.join(self.data_root, 'casia_au_and_casia_template_after_divide/train_gt')
+
+                else:
+
+                    path = '/media/liu/File/8_26_Sp_dataset_after_divide/train_dataset_train_percent_0.80@8_26'
+                    src_path_list.append(path)
+                    self.cm_gt_path = '/media/liu/File/8_26_Sp_dataset_after_divide/test_dataset_train_percent_0.80@8_26'
+        except Exception as e:
+            print('template_casia_casia', 'error')
+
+        try:
+            if using_data['template_coco_casia']:
+                if train_mode:
+                    path = os.path.join(self.data_root,'coco_casia_template_after_divide/train_src')
+                    src_path_list.append(path)
+                    self.template_coco_casia_gt_path = os.path.join(self.data_root, 'coco_casia_template_after_divide/train_gt')
+                else:
+                    path = '/media/liu/File/8_26_Sp_dataset_after_divide/train_dataset_train_percent_0.80@8_26'
+                    src_path_list.append(path)
+                    self.cm_gt_path = '/media/liu/File/8_26_Sp_dataset_after_divide/test_dataset_train_percent_0.80@8_26'
+
+        except Exception as e:
+            print(e)
+        ###########################################
+
+        # cod10k
+        try:
+            if using_data['cod10k']:
+                if train_mode:
+
+                    path = os.path.join(self.data_root, 'COD10K/train_src')
+                    src_path_list.append(path)
+                    self.COD10K_gt_path = os.path.join(self.data_root, 'COD10K/train_gt')
+
+                else:
+                    path = '/media/liu/File/8_26_Sp_dataset_after_divide/train_dataset_train_percent_0.80@8_26'
+                    src_path_list.append(path)
+                    self.cm_gt_path = '/media/liu/File/8_26_Sp_dataset_after_divide/test_dataset_train_percent_0.80@8_26'
+        except Exception as e:
+            print(e)
+        #############################################
+
+        # negative
+        try:
+            if using_data['negative']:
+                if train_mode:
+                    path = os.path.join(self.data_root, 'negative')
+                    src_path_list.append(path)
+                    self.negative_gt_path = '/home/liu/haoran/HDG_ImgTamperDetection/utils'
+                else:
+                    path = '/media/liu/File/10月数据准备/10月12日实验数据/negative/src'
+                    src_path_list.append(path)
+                    self.negative_gt_path = '/media/liu/File/10月数据准备/10月12日实验数据/negative/gt'
+        except Exception as e:
+            print(e)
+
         # # texture
         # try:
         #     if using_data['texture_sp']:
@@ -579,8 +630,17 @@ if __name__ == '__main__':
     start = time.time()
     try:
         for idx, item in enumerate(dataloader):
+            print(item['gt_band'])
+            _ = np.array(item['gt_band'])
+            _ = _.squeeze(0)
+            print(_.shape)
+            print(item['gt_band'])
+            plt.imshow(_)
+            plt.show()
             if item['tamper_image'].shape[2:] !=item['gt_band'].shape[2:]:
-                print(item['path'])
+                pass
+                # print(item['gt_band'])
+                # plt.imshow(item['gt_band'])
 
     except Exception as e:
         print(e)
