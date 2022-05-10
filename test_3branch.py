@@ -30,9 +30,18 @@ def read_test_data(output_path,isshow=True):
             image_path = os.path.join(test_data_path,name)
             try:
                 img = Image.open(image_path)
+                img = img.convert("RGB")
+                im0 = img.copy()
+                if len(img.split()) == 4:
+                    img = img.convert("RGB")
+
             except Exception as e:
                 print(e)
                 continue
+            # # resize 的方式
+            # if img.size != (320, 320):
+            #     img = img.resize((320,320))
+            #     img = np.array(img,dtype='uint8')
 
             img = np.array(img,dtype='float32')
             # (0.47, 0.43, 0.39), (0.27, 0.26, 0.27)
@@ -76,15 +85,18 @@ def read_test_data(output_path,isshow=True):
             out_area = np.asarray(out_area,dtype='uint8')
             out_band = np.asarray(out_band, dtype='uint8')
 
-
-            if isshow:
-                plt.subplot(121)
-                plt.imshow(out_area)
-                plt.subplot(122)
-                plt.imshow(out_band)
-                plt.title('The cls score is:{:.2f}'.format(100 * float(out_cls.cpu().detach().numpy())))
-
-                plt.show()
+            #
+            # if isshow:
+            #
+            #     plt.subplot(131)
+            #     plt.imshow(im0)
+            #     plt.subplot(132)
+            #     plt.imshow(out_area)
+            #     plt.subplot(133)
+            #     plt.imshow(out_band)
+            #     plt.title('The cls score is:{:.2f}'.format(100 * float(out_cls.cpu().detach().numpy())))
+            #
+            #     plt.show()
 
 
             cv.imwrite(os.path.join(output_path, 'area_' + name), out_area)
@@ -126,16 +138,17 @@ if __name__ == '__main__':
         'coverage':'/home/liu/haoran/3月最新数据/public_dataset/coverage/src',
         'casia':'/home/liu/haoran/3月最新数据/public_dataset/casia/src',
         'realistic':'/home/liu/haoran/3月最新数据/public_dataset/realistic/src',
-
+        'wild':'/home/liu/haoran/3月最新数据/public_dataset/wild/images',
+        'ps':'/home/liu/haoran/3月最新数据/public_dataset/ps-battle-30',
         'coco':'/home/liu/haoran/3月最新数据/coco_sp/test_src',
         'negative':'/home/liu/haoran/3月最新数据/negative',
     }
 
 
     try:
-        test_data_path = test_data_path['negative']
-        output_path = '/home/liu/haoran/test_result/tmp'
-        model_path = '/home/liu/haoran/HDG_ImgTamperDetection/save_model/0304_3branch/0303_3branch-12-0.087718-[f10.784881-precision0.674629-acc0.974093-recall0.949952]-[f10.536615-precision0.375086-acc0.976698-recall0.959070]-[f10.536615-precision0.375086-acc0.976698-recall0.959070].pth'
+        test_data_path = test_data_path['wild']
+        output_path = '/home/liu/haoran/test_result/xr-4-wild'
+        model_path = '/home/liu/haoran/HDG_ImgTamperDetection/save_model/0304_3branch/0303_3branch-99-0.070301-[f10.802046-precision0.702137-acc0.976859-recall0.945557]-[f10.531083-precision0.369580-acc0.976056-recall0.961372]-[f10.531083-precision0.369580-acc0.976056-recall0.961372].pth'
         # mkdir
         if os.path.exists(output_path):
             pass

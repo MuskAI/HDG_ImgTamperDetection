@@ -112,12 +112,13 @@ class ClsNet(nn.Module):
 
         self.extra1 = nn.Conv2d(in_channels=self.in_channels,
                       out_channels=self.cls_extra_channel_list[0], kernel_size=3, stride=2, padding=1)
-
+        # 10*10
         self.extra2 = nn.Conv2d(in_channels=self.cls_extra_channel_list[0],
                       out_channels=self.cls_extra_channel_list[1], kernel_size=3, stride=2, padding=1)
-
+        # 5*5
         self.extra3 = nn.AdaptiveAvgPool2d(1)
 
+        # 1*1
         self.extra4 = nn.Conv2d(in_channels=self.cls_extra_channel_list[1],out_channels=1,kernel_size=1)
 
 

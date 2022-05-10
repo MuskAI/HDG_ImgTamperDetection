@@ -122,7 +122,7 @@ class TamperDataset(Dataset):
 
         # read img
         try:
-            img = Image.open(tamper_path)
+            img = Image.open(tamper_path).convert('RGB')
             gt = Image.open(gt_path)
             if 'negative' in tamper_path:
                 isforgery = False
@@ -178,8 +178,22 @@ class TamperDataset(Dataset):
                     transforms.ToTensor(),
                     transforms.Normalize((0.47, 0.43, 0.39), (0.27, 0.26, 0.27)),
                 ])(img)
-            gt = transforms.ToTensor()(gt)
-            gt_band = transforms.ToTensor()(gt_band)
+
+
+                gt = transforms.Compose([
+
+                    transforms.Resize((320, 320)),
+                    transforms.ToTensor()
+                ])(gt)
+
+
+
+                gt_band = transforms.Compose([
+
+                    transforms.Resize((320, 320)),
+                    transforms.ToTensor()
+                ])(gt_band)
+
 
         elif mode == 'test':
             # if transform src
@@ -285,7 +299,8 @@ class MixData:
         sp_type = ['Sp']
         cm_type = ['Default', 'poisson']
         negative_type = ['negative']
-        CASIA_type = ['Tp']
+        CASIA_type = ['casia']
+        COLUMBIA_type = ['columbia']
         COVERAGE_type = ['coverage']
         debug_type = ['debug']
         template_coco_casia = ['coco_casia_template_after_divide']
@@ -334,7 +349,10 @@ class MixData:
             if COVERAGE_flag in path:
                 type.append('COVERAGE')
                 break
-
+        for COLUMBIA_flag in COLUMBIA_type:
+            if COLUMBIA_flag in path:
+                type.append('COLUMBIA')
+                break
         for TEXUTURE_flag in texture_cm_type:
             if TEXUTURE_flag in path:
                 type.append('TEXTURE_CM')
@@ -364,9 +382,16 @@ class MixData:
             gt_path = os.path.join(self.negative_gt_path, gt_path)
             pass
         elif type[0] == 'CASIA':
-            gt_path = name.split('.')[0] + '_gt' + '.png'
-            gt_path = os.path.join(self.casia_gt_path, gt_path)
-            pass
+            # 因为casia中数据格式不统一
+            gt_path = None
+            gt_list = os.listdir(self.casia_gt_path)
+            for idx, item in enumerate(gt_list):
+                if name.split('.')[0] in item:
+                    gt_path = os.path.join(self.casia_gt_path, item)
+                    break
+
+
+
         elif type[0] == 'TEMPLATE_CASIA_CASIA':
             gt_path = name.split('.')[0] + '.bmp'
             gt_path = os.path.join(self.template_casia_casia_gt_path, gt_path)
@@ -384,6 +409,10 @@ class MixData:
             # gt_path = name.split('.')[0] + '_gt.bmp'
             gt_path = name.replace('t','forged')
             gt_path = os.path.join(self.coverage_gt_path, gt_path)
+
+
+
+
         elif type[0] == 'TEXTURE_CM':
             gt_path = name.split('.')[0] + '.bmp'
             gt_path = os.path.join(self.texture_cm_gt_path, gt_path)
@@ -494,6 +523,21 @@ class MixData:
                     self.cm_gt_path = '/media/liu/File/8_26_Sp_dataset_after_divide/test_dataset_train_percent_0.80@8_26'
         except Exception as e:
             print(e)
+
+        # casia
+        try:
+            if using_data['casia']:
+                if train_mode:
+                    path = os.path.join(self.data_root, 'public_dataset/casia/src')
+                    src_path_list.append(path)
+                    self.casia_gt_path = os.path.join(self.data_root, 'public_dataset/casia/gt')
+
+                else:
+                    path = os.path.join(self.data_root, 'public_dataset/casia/src')
+                    src_path_list.append(path)
+                    self.casia_gt_path = os.path.join(self.data_root, 'public_dataset/casia/gt')
+        except Exception as e:
+            print(e)
         #############################################
 
         # negative
@@ -510,46 +554,8 @@ class MixData:
         except Exception as e:
             print(e)
 
-        # # texture
-        # try:
-        #     if using_data['texture_sp']:
-        #         if train_mode:
-        #             path = os.path.join(self.data_root, '0108_texture_and_casia_template_divide/train_src')
-        #             src_path_list.append(path)
-        #             self.texture_sp_gt_path = os.path.join(self.data_root, '0108_texture_and_casia_template_divide/train_gt')
-        #         else:
-        #             path = '/home/liu/chenhaoran/Tamper_Data/0222/0108_texture_and_casia_template_divide/test_src'
-        #             src_path_list.append(path)
-        #             self.texture_sp_gt_path = '/home/liu/chenhaoran/Tamper_Data/0222/0108_texture_and_casia_template_divide/test_gt'
-        # except Exception as e:
-        #     print(e)
-        #
-        # try:
-        #     if using_data['texture_cm']:
-        #         if train_mode:
-        #             path = os.path.join(self.data_root, 'periodic_texture/divide/train_src')
-        #             src_path_list.append(path)
-        #             self.texture_cm_gt_path = os.path.join(self.data_root,
-        #                                                    'periodic_texture/divide/train_gt')
-        #         else:
-        #             path = '/media/liu/File/10月数据准备/10月12日实验数据/negative/src'
-        #             src_path_list.append(path)
-        #             self.texture_cm_gt_path = '/media/liu/File/10月数据准备/10月12日实验数据/negative/gt'
-        # except Exception as e:
-        #     print(e)
-        #
-        # try:
-        #     if using_data['casia']:
-        #         if train_mode:
-        #             pass
-        #         else:
-        #             path = '/home/liu/chenhaoran/Tamper_Data/0222/casia/src'
-        #             src_path_list.append(path)
-        #             self.casia_gt_path = '/home/liu/chenhaoran/Tamper_Data/0222/casia/gt'
-        #
-        # except Exception as e:
-        #     print(e)
-        # ##################################################################################
+
+
 
         # public dataset
         try:
@@ -567,8 +573,9 @@ class MixData:
 
         try:
             if using_data['columb']:
-                path = '/media/liu/File/Sp_320_dataset/tamper_result_320'
+                path = os.path.join(self.data_root, 'public_dataset/columbia/src')
                 src_path_list.append(path)
+                self.columbia_gt_path = os.path.join(self.data_root, 'public_dataset/columbia/gt')
         except Exception as e:
             print(e)
         ##############################
@@ -612,12 +619,12 @@ if __name__ == '__main__':
 
     print('start')
 
-    mytestdataset = TamperDataset(using_data={'my_sp': True,
-                                              'my_cm': True,
+    mytestdataset = TamperDataset(using_data={'my_sp': False,
+                                              'my_cm': False,
                                               'template_casia_casia': False,
                                               'template_coco_casia': False,
                                               'cod10k': False,
-                                              'casia': False,
+                                              'casia': True,
                                               'coverage': False,
                                               'columb': False,
                                               'negative_coco': False,

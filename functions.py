@@ -151,9 +151,10 @@ class FocalLoss(nn.Module):
 def three_branch_loss(pred_area,pred_band,pred_cls,gt_area,gt_band,gt_cls):
     # loss_area = cross_entropy_loss_edge_weight(pred_area, gt_area, gt_band)
     loss_band = cross_entropy_loss(pred_band, gt_band)
-    loss_area = cross_entropy_loss(pred_area, gt_area)
-    loss_cls = CE_loss(pred_cls, gt_cls)
-    losses = loss_area*10 + loss_band*10 +loss_cls
+    loss_area = cross_entropy_loss_edge_weight(pred_area, gt_area,gt_band)
+    dice_loss = wce_dice_huber_loss(pred_area,gt_area)
+    # loss_cls = CE_loss(pred_cls, gt_cls)
+    losses = loss_area + dice_loss*0.3 +loss_band*0.1
 
     return losses
 

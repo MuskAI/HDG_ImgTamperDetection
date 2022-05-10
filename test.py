@@ -7,18 +7,16 @@ from model.unet_model_aspp_attention import UNet as Net
 import os, sys
 import numpy as np
 from PIL import Image
-import shutil
-import argparse
-import time
-import datetime
+# import shutil
+# import argparse
+# import time
+# import datetime
 import torch
 
-import matplotlib
-import matplotlib.pyplot as plt
 import cv2 as cv
-from functions import sigmoid_cross_entropy_loss, cross_entropy_loss,l1_loss,wce_huber_loss
-from os.path import join, split, isdir, isfile, splitext, split, abspath, dirname
-from utils import to_none_class_map
+# from functions import sigmoid_cross_entropy_loss, cross_entropy_loss,l1_loss,wce_huber_loss
+# from os.path import join, split, isdir, isfile, splitext, split, abspath, dirname
+# from utils import to_none_class_map
 device = torch.device("cpu")
 
 def read_test_data(output_path):
@@ -67,16 +65,13 @@ def read_test_data(output_path):
                 img = np.array(img,dtype='uint8')
 
             img = np.array(img,dtype='float32')
-            R_MEAN = img[:,:,0].mean()
-            G_MEAN = img[:,:,1].mean()
-            B_MEAN = img[:,:,2].mean()
-            img[:,:,0] =img[:,:,0]-R_MEAN
-            img[:, :, 1] = img[:, :, 1] - G_MEAN
-            img[:, :, 2] = img[:, :, 2] - B_MEAN
-            img[:, :, 0] /= 255
-            img[:, :, 1] /= 255
-            img[:, :, 2] /= 255
 
+            img[:,:,0] =img[:,:,0]-0.47*255
+            img[:, :, 1] = img[:, :, 1] - 0.43*255
+            img[:, :, 2] = img[:, :, 2] - 0.39*255
+            img[:, :, 0] /= 0.27 * 255
+            img[:, :, 1] /= 0.26 * 255
+            img[:, :, 2] /= 0.27 * 255
             img = np.transpose(img,(2,0,1))
             img = img[np.newaxis,:,:,:]
             img = torch.from_numpy(img)
@@ -140,12 +135,19 @@ if __name__ == '__main__':
     try:
 
         test_data_path = '/home/liu/haoran/3月最新数据/public_dataset/columbia/src'
-        output_path = '/home/liu/haoran/test_result/final_columbia_test'
+        output_path = '/home/liu/haoran/test_result/xr-2-columbia'
         if os.path.exists(output_path):
             pass
         else:
             os.makedirs(output_path)
-        model_path = '/home/liu/haoran/HDG_ImgTamperDetection/save_model/0218_srm_aspp_dilate_attention_unet_area_coco_sp_cm_template/0218_unet_attention_area_checkpoint-99-0.052342-f10.880099-precision0.862926-acc0.973697-recall0.902359.pth'
+
+
+        model_zoo = {
+            'naive_unet':'/home/liu/haoran/HDG_ImgTamperDetection/save_model/0108_naive_unet_area_coco_sp_cm/0108_naive_unet_area_checkpoint-77-0.280948-f10.647072-precision0.576892-acc0.921198-recall0.751415.pth',
+            'band_weight':'/home/liu/haoran/HDG_ImgTamperDetection/save_model/0221_srm_aspp_dilate_attention_unet_area_coco_sp_cm_template_edge_weight/0221_unet_attention_area_checkpoint-61-0.101309-f10.933732-precision0.944914-acc0.985886-recall0.924695.pth'
+
+        }
+        model_path = model_zoo['band_weight']
         checkpoint = torch.load(model_path,map_location=torch.device('cpu'))
         model = Net().to(device)
         # model = torch.load(model_path)
